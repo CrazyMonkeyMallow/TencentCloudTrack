@@ -1,31 +1,15 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const fakeHistory = [
-  {
-    id: 1,
-    date: "2026-05-14",
-    doctor: "Dr. Chen",
-    symptoms: "Chest pain, shortness of breath",
-    advice: "Rest, avoid strenuous activity. Take prescribed medication.",
-  },
-  {
-    id: 2,
-    date: "2026-05-10",
-    doctor: "Dr. Wang",
-    symptoms: "High fever, headache",
-    advice: "Stay hydrated, take paracetamol every 6 hours.",
-  },
-  {
-    id: 3,
-    date: "2026-05-02",
-    doctor: "Dr. Li",
-    symptoms: "Sprained ankle",
-    advice: "Ice and elevate for 48 hours. Avoid walking.",
-  },
-];
+import HistoryCard from "../../components/HistoryCard";
+import { getPatientHistory } from "../../api/index";
 
 export default function PatientHistory() {
   const navigate = useNavigate();
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    getPatientHistory().then((data) => setHistory(data));
+  }, []);
 
   return (
     <div style={styles.container}>
@@ -60,30 +44,14 @@ const styles = {
   backBtn: {
     background: "none",
     border: "none",
-    color: "#00796b",
+    color: "#f7c933",
     fontSize: "1rem",
     cursor: "pointer",
     marginBottom: "1rem",
   },
   title: {
-    color: "#00796b",
+    color: "#f7c933",
     marginBottom: "1.5rem",
     textAlign: "center",
   },
-  card: {
-    background: "white",
-    borderRadius: 12,
-    padding: "1.2rem",
-    marginBottom: "1rem",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-  },
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "0.8rem",
-  },
-  date: { color: "#888", fontSize: "0.9rem" },
-  doctor: { color: "#1565c0", fontWeight: "bold", fontSize: "0.9rem" },
-  label: { color: "#aaa", fontSize: "0.8rem", margin: "0.5rem 0 0.2rem" },
-  value: { color: "#333", fontSize: "0.95rem", margin: 0 },
 };
