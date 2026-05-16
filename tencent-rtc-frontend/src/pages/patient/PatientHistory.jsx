@@ -16,16 +16,19 @@ export default function PatientHistory() {
       <button style={styles.backBtn} onClick={() => navigate("/patient")}>
         ← Back
       </button>
-      <h2 style={styles.title}>📋 My Consultation History</h2>
-      {history.map((item) => (
-        <HistoryCard
-          key={item.id}
-          date={item.date}
-          person={item.doctor}
-          symptoms={item.symptoms}
-          note={item.advice}
-          noteLabel="Doctor's Advice"
-        />
+      <h2 style={styles.title}> My Consultation History</h2>
+
+      {fakeHistory.map((item) => (
+        <div key={item.id} style={styles.card}>
+          <div style={styles.cardHeader}>
+            <span style={styles.date}>{item.date}</span>
+            <span style={styles.doctor}>{item.doctor}</span>
+          </div>
+          <p style={styles.label}>Symptoms</p>
+          <p style={styles.value}>{item.symptoms}</p>
+          <p style={styles.label}>Doctor's Advice</p>
+          <p style={styles.value}>{item.advice}</p>
+        </div>
       ))}
     </div>
   );

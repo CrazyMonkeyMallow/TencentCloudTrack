@@ -24,7 +24,7 @@ export default function VideoRoom({ localStream, remoteStream }) {
         <div ref={localRef} style={{ width: 320, height: 240, background: '#000' }} />
       </div>
       <div>
-        <p>they</p>
+        <p>them</p>
         <div
           ref={remoteRef}
           style={{ width: 320, height: 240, background: '#111' }}
