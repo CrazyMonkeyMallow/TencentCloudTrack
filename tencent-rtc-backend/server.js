@@ -24,6 +24,7 @@ app.use(cors());
 
 app.use(express.json()); 
 // Enable parsing of JSON request bodies
+const db = require('./database/db');
 
 // Health check endpoint
 // Used to verify that the backend server is running properly
