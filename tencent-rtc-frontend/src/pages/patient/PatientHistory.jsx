@@ -32,7 +32,7 @@ export default function PatientHistory() {
       <button style={styles.backBtn} onClick={() => navigate("/patient")}>
         ← Back
       </button>
-      <h2 style={styles.title}>📋 My Consultation History</h2>
+      <h2 style={styles.title}> My Consultation History</h2>
 
       {fakeHistory.map((item) => (
         <div key={item.id} style={styles.card}>
