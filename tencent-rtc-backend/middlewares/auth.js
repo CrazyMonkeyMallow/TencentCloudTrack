@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-git commit -m "WIP: save local changes"
+
 
 function auth(req, res, next) {
 
@@ -8,7 +8,7 @@ function auth(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ message: '未登录，请先登录' });
+    return res.status(401).json({ message: 'please login' });
   }
 
   try {
@@ -17,7 +17,7 @@ function auth(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Token 无效或已过期，请重新登录' });
+    return res.status(401).json({ message: 'Invalid or expired token. Please log in again' });
   }
 }
 
