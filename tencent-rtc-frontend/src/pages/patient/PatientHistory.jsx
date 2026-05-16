@@ -41,13 +41,13 @@ const styles = {
   backBtn: {
     background: "none",
     border: "none",
-    color: "#fdda73dd",
+    color: "#f7c933",
     fontSize: "1rem",
     cursor: "pointer",
     marginBottom: "1rem",
   },
   title: {
-    color: "#fdda73dd",
+    color: "#f7c933",
     marginBottom: "1.5rem",
     textAlign: "center",
   },
