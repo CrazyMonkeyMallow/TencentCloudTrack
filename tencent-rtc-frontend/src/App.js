@@ -1,34 +1,18 @@
-import { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Call from "./pages/Call";
+import VideoCall from "./pages/VideoCall";
+import PatientHistory from "./pages/patient/PatientHistory";
+import DoctorHistory from "./pages/doctor/DoctorHistory";
 
-function App() {
-  const [data, setData] = useState(null);
-
-  useEffect(() => {
-    fetch("http://localhost:3001/usersig")
-      .then((res) => res.json())
-      .then((result) => {
-        setData(result);
-        console.log("backend response:", result);
-      })
-      .catch((err) => {
-        console.error("error fetching backend:", err);
-      });
-  }, []);
-
+export default function App() {
   return (
-    <div style={{ padding: 20 }}>
-      <h1>🚀 React + Node Connection Test</h1>
-
-      {!data && <p>Loading...</p>}
-
-      {data && (
-        <div>
-          <p><b>User ID:</b> {data.userId}</p>
-          <p><b>UserSig:</b> {data.userSig}</p>
-        </div>
-      )}
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/call" element={<Call />} />
+      <Route path="/video" element={<VideoCall />} />
+      <Route path="/patient/history" element={<PatientHistory />} />
+      <Route path="/doctor/history" element={<DoctorHistory />} />
+    </Routes>
   );
 }
-
-export default App;
