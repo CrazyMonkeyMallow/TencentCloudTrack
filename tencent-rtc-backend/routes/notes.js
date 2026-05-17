@@ -1,9 +1,7 @@
 
-Copy
-
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const auth = require('../middlewares/auth');
 const { submitNotes, checkNotes } = require('../controllers/notesController');
  
 // POST /api/notes/submit    

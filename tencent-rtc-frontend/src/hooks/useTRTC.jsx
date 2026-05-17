@@ -1,92 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import TRTC from 'trtc-js-sdk';
- 
-const API_BASE = 'http://localhost:3001';
- 
-// roomId: string, userId: string, role: 'patient' | 'doctor'
-export function useTRTC(roomId, userId, role) {
+import api from '../api';
+
+// roomId: numeric string from backend, userId: logged-in user id
+export function useTRTC(roomId, userId, role, consultationId) {
   const clientRef = useRef(null);
   const localStreamRef = useRef(null);
- 
+
+  const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [messages, setMessages] = useState([]);
   const [joined, setJoined] = useState(false);
- 
-  useEffect(() => {
-    if (!roomId || !userId) return;
-    let cancelled = false;
- 
-    async function init() {
-      // 1. take userSig
-      const res = await fetch(`${API_BASE}/usersig?userId=${userId}`);
-      const { userSig, sdkAppId } = await res.json();
- 
-      if (cancelled) return;
- 
-      // TRTC client
-      const client = TRTC.createClient({
-        mode: 'rtc',
-        sdkAppId,
-        userId,
-        userSig,
-      });
-      clientRef.current = client;
- 
-      // listen for remote stream
-      client.on('stream-added', (e) => {
-        client.subscribe(e.stream);
-      });
-      client.on('stream-subscribed', (e) => {
-        setRemoteStream(e.stream);
-      });
-      client.on('stream-removed', () => {
-        setRemoteStream(null);
-      });
- 
-      // listen for custom messages (text chat)
-      client.on('custom-message-received', (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          setMessages((prev) => [...prev, msg]);
-        } catch (_) {}
-      });
- 
-      // join
-      await client.join({ roomId: Number(roomId) });
- 
-      // local stream
-      const localStream = TRTC.createStream({
-        userId,
-        audio: true,
-        video: true,
-      });
-      localStreamRef.current = localStream;
-      await localStream.initialize();
-      await client.publish(localStream);
- 
-      if (!cancelled) setJoined(true);
-    }
- 
-    init().catch(console.error);
- 
-    return () => {
-      cancelled = true;
-      hangUp();
-    };
-  }, [roomId, userId]);
- 
-  // textmessage
-  function sendMessage(text) {
-    if (!clientRef.current || !text.trim()) return;
-    const msg = { sender: role, text, time: Date.now() };
-    clientRef.current.sendCustomMessage({
-      data: JSON.stringify(msg),
-    });
-    setMessages((prev) => [...prev, msg]);
-  }
- 
-  // hangup
-  async function hangUp() {
+  const [error, setError] = useState(null);
+
+  const hangUp = useCallback(async () => {
     try {
       if (localStreamRef.current) {
         localStreamRef.current.stop();
@@ -99,8 +26,109 @@ export function useTRTC(roomId, userId, role) {
         clientRef.current = null;
       }
     } catch (_) {}
+    setLocalStream(null);
+    setRemoteStream(null);
     setJoined(false);
-  }
- 
-  return { remoteStream, localStream: localStreamRef.current, messages, sendMessage, hangUp, joined };
+  }, []);
+
+  useEffect(() => {
+    if (!roomId || !userId) return;
+    let cancelled = false;
+
+    async function init() {
+      try {
+        const { userSig, sdkAppId } = await api.getUserSig(String(userId));
+        if (cancelled) return;
+
+        const client = TRTC.createClient({
+          mode: 'rtc',
+          sdkAppId: Number(sdkAppId),
+          userId: String(userId),
+          userSig,
+        });
+        clientRef.current = client;
+
+        client.on('stream-added', (e) => {
+          client.subscribe(e.stream);
+        });
+        client.on('stream-subscribed', (e) => {
+          setRemoteStream(e.stream);
+        });
+        client.on('stream-removed', () => {
+          setRemoteStream(null);
+        });
+        const numericRoom = parseInt(String(roomId), 10);
+        await client.join({ roomId: numericRoom });
+
+        const stream = TRTC.createStream({
+          userId: String(userId),
+          audio: true,
+          video: true,
+        });
+        await stream.initialize();
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        await client.publish(stream);
+
+        if (!cancelled) setJoined(true);
+      } catch (err) {
+        console.error('TRTC init error:', err);
+        if (!cancelled) setError(err.message || 'Failed to join room');
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+      hangUp();
+    };
+  }, [roomId, userId, hangUp]);
+
+  useEffect(() => {
+    if (!consultationId) return undefined;
+
+    let cancelled = false;
+
+    async function loadMessages() {
+      try {
+        const nextMessages = await api.getMessages(consultationId);
+        if (!cancelled) setMessages(nextMessages);
+      } catch (err) {
+        console.error('getMessages failed', err);
+      }
+    }
+
+    loadMessages();
+    const timer = setInterval(loadMessages, 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [consultationId]);
+
+  const sendMessage = useCallback(
+    async (text, senderRole = role) => {
+      if (!consultationId || !text.trim()) return;
+
+      const { message } = await api.postMessage(
+        consultationId,
+        text.trim(),
+        senderRole
+      );
+      setMessages((prev) => [...prev, message]);
+    },
+    [consultationId, role]
+  );
+
+  return {
+    localStream,
+    remoteStream,
+    messages,
+    sendMessage,
+    hangUp,
+    joined,
+    error,
+  };
 }

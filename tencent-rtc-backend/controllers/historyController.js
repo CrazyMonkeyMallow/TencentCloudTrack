@@ -1,4 +1,4 @@
-const Consultation = require('../models/Consultation');
+const Consultation = require('../model/consultation');
 
 // GET /api/history
 // Called by: Patient or doctor

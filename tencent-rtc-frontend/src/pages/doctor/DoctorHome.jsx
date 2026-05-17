@@ -1,226 +1,158 @@
-// DoctorHome.jsx
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api';
 
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  useNavigate,
-} from "react-router-dom";
-import { useEffect, useState } from "react";
-
-function DoctorDashboard() {
+export default function DoctorHome() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState(null);
+  const [error, setError] = useState('');
 
-  const [consultationQueue, setConsultationQueue] = useState([]);
-  const [callNotifications, setCallNotifications] = useState([]);
-
-  useEffect(() => {
-    // Sample incoming consultation queue
-    setConsultationQueue([
-      {
-        id: 1,
-        patientName: "Emily Carter",
-        concern: "Chest pain and dizziness",
-        waitTime: "5 mins",
-      },
-      {
-        id: 2,
-        patientName: "Michael Lee",
-        concern: "Persistent fever",
-        waitTime: "12 mins",
-      },
-      {
-        id: 3,
-        patientName: "Sophia Nguyen",
-        concern: "Severe headache",
-        waitTime: "18 mins",
-      },
-    ]);
-
-    // Sample call notifications
-    setCallNotifications([
-      {
-        id: 1,
-        patientName: "Daniel Kim",
-        status: "Consultation completed",
-        time: "10:15 AM",
-      },
-      {
-        id: 2,
-        patientName: "Olivia Brown",
-        status: "Missed consultation",
-        time: "11:02 AM",
-      },
-    ]);
+  const loadPending = useCallback(async () => {
+    try {
+      const list = await api.getPendingCalls();
+      setCalls(list);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to load queue');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Navigate to DoctorConsult.jsx
-  function clickButton(patient) {
-    navigate("/doctor-consult", {
-      state: {
-        patient,
-      },
-    });
-  }
+  useEffect(() => {
+    loadPending();
+    const timer = setInterval(loadPending, 3000);
+    return () => clearInterval(timer);
+  }, [loadPending]);
 
-  // Navigate to DoctorHistory.jsx
-  function clickCallLog(notification) {
-    navigate("/doctor-history", {
-      state: {
-        notification,
-      },
-    });
+  async function handleAccept(consultationId) {
+    setAcceptingId(consultationId);
+    try {
+      const { roomId } = await api.acceptCall(consultationId);
+      navigate('/doctor/consult', {
+        state: { roomId, consultationId },
+      });
+    } catch (err) {
+      setError(err.message || 'Could not accept call');
+    } finally {
+      setAcceptingId(null);
+    }
   }
 
   return (
     <div style={styles.page}>
-      <h1 style={styles.title}>Doctor Dashboard</h1>
+      <header style={styles.header}>
+        <div>
+          <h1 style={styles.title}>Doctor Dashboard</h1>
+          <p style={styles.sub}>Dr. {user?.name}</p>
+        </div>
+        <div style={styles.headerActions}>
+          <Link to="/doctor/history" style={styles.historyLink}>
+            History
+          </Link>
+          <button type="button" style={styles.linkBtn} onClick={logout}>
+            Logout
+          </button>
+        </div>
+      </header>
 
-      {/* Incoming Consultation Queue */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>
-          Incoming Consultation Queue
-        </h2>
+      <main style={styles.card}>
+        <h2 style={styles.sectionTitle}>Pending consultations</h2>
+        <p style={styles.pollHint}>Refreshes every 3 seconds</p>
 
-        {consultationQueue.map((patient) => (
-          <div key={patient.id} style={styles.card}>
+        {error && <p style={styles.error}>{error}</p>}
+        {loading && calls.length === 0 && <p>Loading…</p>}
+        {!loading && calls.length === 0 && (
+          <p style={styles.empty}>No patients waiting right now.</p>
+        )}
+
+        {calls.map((call) => (
+          <div key={call.id} style={styles.callCard}>
             <div>
-              <h3 style={styles.patientName}>
-                {patient.patientName}
-              </h3>
-
-              <p style={styles.text}>
-                <strong>Health Concern:</strong>{" "}
-                {patient.concern}
-              </p>
-
-              <p style={styles.text}>
-                <strong>Waiting Time:</strong>{" "}
-                {patient.waitTime}
+              <h3 style={styles.patientName}>{call.patientName}</h3>
+              <p style={styles.symptoms}>{call.symptoms}</p>
+              <p style={styles.time}>
+                Waiting since {new Date(call.startedAt).toLocaleString()}
               </p>
             </div>
-
             <button
-              style={styles.primaryButton}
-              onClick={() => clickButton(patient)}
+              type="button"
+              style={styles.acceptBtn}
+              disabled={acceptingId === call.id}
+              onClick={() => handleAccept(call.id)}
             >
-              Check Patient
+              {acceptingId === call.id ? 'Joining…' : 'Accept & join'}
             </button>
           </div>
         ))}
-      </div>
-
-      {/* Call Notifications */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>
-          Call Notifications
-        </h2>
-
-        {callNotifications.map((notification) => (
-          <div key={notification.id} style={styles.card}>
-            <div>
-              <h3 style={styles.patientName}>
-                {notification.patientName}
-              </h3>
-
-              <p style={styles.text}>
-                <strong>Status:</strong>{" "}
-                {notification.status}
-              </p>
-
-              <p style={styles.text}>
-                <strong>Time:</strong>{" "}
-                {notification.time}
-              </p>
-            </div>
-
-            <button
-              style={styles.secondaryButton}
-              onClick={() =>
-                clickCallLog(notification)
-              }
-            >
-              Review Consultation History
-            </button>
-          </div>
-        ))}
-      </div>
+      </main>
     </div>
-  );
-}
-
-export default function DoctorHome() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<DoctorDashboard />} />
-      </Routes>
-    </BrowserRouter>
   );
 }
 
 const styles = {
   page: {
-    minHeight: "100vh",
-    backgroundColor: "#f4f7fb",
-    padding: "40px",
-    fontFamily: "Arial, sans-serif",
+    minHeight: '100vh',
+    background: '#f4f7fb',
+    padding: 24,
+    fontFamily: 'system-ui, sans-serif',
   },
-
-  title: {
-    textAlign: "center",
-    marginBottom: "40px",
-    color: "#1e293b",
+  header: {
+    maxWidth: 720,
+    margin: '0 auto 24px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-
-  section: {
-    marginBottom: "40px",
+  headerActions: { display: 'flex', gap: 12, alignItems: 'center' },
+  title: { margin: 0 },
+  sub: { margin: '4px 0 0', color: '#64748b' },
+  historyLink: { color: '#2563eb', textDecoration: 'none', fontWeight: 600 },
+  linkBtn: {
+    background: 'none',
+    border: '1px solid #cbd5e1',
+    borderRadius: 8,
+    padding: '8px 12px',
+    cursor: 'pointer',
   },
-
-  sectionTitle: {
-    marginBottom: "20px",
-    color: "#334155",
-  },
-
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "20px",
-    marginBottom: "16px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    maxWidth: 720,
+    margin: '0 auto',
+    background: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
   },
-
-  patientName: {
-    margin: 0,
-    marginBottom: "8px",
-    color: "#0f172a",
+  sectionTitle: { marginTop: 0 },
+  pollHint: { color: '#94a3b8', fontSize: 13, marginTop: -8 },
+  empty: { color: '#64748b' },
+  callCard: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
   },
-
-  text: {
-    margin: "4px 0",
-    color: "#475569",
+  patientName: { margin: '0 0 8px' },
+  symptoms: { margin: '0 0 4px', color: '#334155' },
+  time: { margin: 0, fontSize: 13, color: '#94a3b8' },
+  acceptBtn: {
+    padding: '10px 18px',
+    border: 'none',
+    borderRadius: 8,
+    background: '#2563eb',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
-
-  primaryButton: {
-    backgroundColor: "#2563eb",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 18px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-
-  secondaryButton: {
-    backgroundColor: "#0f766e",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 18px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
+  error: { color: '#dc2626' },
 };
