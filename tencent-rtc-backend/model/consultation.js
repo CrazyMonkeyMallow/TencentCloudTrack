@@ -26,6 +26,23 @@ class Consultation {
     return db.prepare(sql).all();
   }
 
+  static findLatestForPatient(patientId) {
+    const sql = `
+      SELECT
+        c.*,
+        p.name AS patientName,
+        d.name AS doctorName
+      FROM consultations c
+      JOIN users p ON c.patientId = p.id
+      LEFT JOIN users d ON c.doctorId = d.id
+      WHERE c.patientId = ?
+        AND c.status IN ('pending', 'active', 'ended', 'completed')
+      ORDER BY c.startedAt DESC
+      LIMIT 1
+    `;
+    return db.prepare(sql).get(patientId) || null;
+  }
+
 
   static findById(id) {
     const sql = `
@@ -52,15 +69,55 @@ class Consultation {
     }
   }
 
+  static end(id) {
+    const sql = `
+      UPDATE consultations
+      SET status = 'ended', endedAt = COALESCE(endedAt, datetime('now'))
+      WHERE id = ? AND status IN ('pending', 'active')
+    `;
+    db.prepare(sql).run(id);
+  }
+
   
 
   static saveChatLog(id, chatLog) {
+    const existing = this.getChatLog(id);
+    const seen = new Set(existing.map((message) => `${message.sender}-${message.time}-${message.text}`));
+    const merged = [...existing];
+
+    (Array.isArray(chatLog) ? chatLog : []).forEach((message) => {
+      const key = `${message.sender}-${message.time}-${message.text}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(message);
+      }
+    });
+
     const sql = `
       UPDATE consultations
-      SET chatLog = ?, endedAt = datetime('now')
+      SET chatLog = ?, endedAt = COALESCE(endedAt, datetime('now'))
       WHERE id = ?
     `;
-    db.prepare(sql).run(JSON.stringify(chatLog), id);
+    db.prepare(sql).run(JSON.stringify(merged), id);
+  }
+
+  static getChatLog(id) {
+    const row = db.prepare(`SELECT chatLog FROM consultations WHERE id = ?`).get(id);
+    if (!row || !row.chatLog) return [];
+
+    try {
+      const parsed = JSON.parse(row.chatLog);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static appendChatMessage(id, message) {
+    const chatLog = this.getChatLog(id);
+    chatLog.push(message);
+    db.prepare(`UPDATE consultations SET chatLog = ? WHERE id = ?`).run(JSON.stringify(chatLog), id);
+    return chatLog;
   }
 
   

@@ -45,7 +45,7 @@ app.get('/usersig', (req, res) => {
     expire: 3600 // Signature validity period in seconds (1 hour)
   });
 
-  res.json({ userSig, userId });
+  res.json({ userSig, userId, sdkAppId: Number(SDKAPPID) });
 });
 
 // Mount route modules (separate API groups for better structure)
